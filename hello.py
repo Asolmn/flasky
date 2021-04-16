@@ -1,4 +1,4 @@
-from flask import Flask, render_template, session, redirect, url_for
+from flask import Flask, render_template, session, redirect, url_for, flash
 from flask_bootstrap import  Bootstrap
 from flask_moment import Moment
 from datetime import datetime
@@ -20,6 +20,9 @@ class NameForm(FlaskForm):
 def index():
     form = NameForm()
     if form.validate_on_submit(): # 验证数据是否能被所有验证函数接受
+        old_name = session.get('name')
+        if old_name is not None and old_name != form.name.data: # old_name不为None同时不等于上次表单中的数据
+            flash('Looks like you have changed your name!')
         session['name'] = form.name.data # 获取表单中name字段的内容
         return redirect(url_for('index'))
     return render_template('index.html', form=form, name=session.get('name'))
