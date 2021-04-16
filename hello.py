@@ -1,4 +1,4 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, session, redirect, url_for
 from flask_bootstrap import  Bootstrap
 from flask_moment import Moment
 from datetime import datetime
@@ -18,12 +18,11 @@ class NameForm(FlaskForm):
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    name = None
     form = NameForm()
-    if form.validate_on_submit():
-        name = form.name.data
-        form.name.data = ''
-    return render_template('index.html', form=form, name=name)
+    if form.validate_on_submit(): # 验证数据是否能被所有验证函数接受
+        session['name'] = form.name.data # 获取表单中name字段的内容
+        return redirect(url_for('index'))
+    return render_template('index.html', form=form, name=session.get('name'))
 
 
 @app.route('/user/<name>')
