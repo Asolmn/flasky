@@ -51,9 +51,9 @@ class NameForm(FlaskForm):
 @app.route('/', methods=['GET', 'POST'])
 def index():
     form = NameForm()
-    if form.validate_on_submit():  # 验证数据是否能被所有验证函数接受
+    if form.validate_on_submit():
         user = User.query.filter_by(username=form.name.data).first()
-        if user is None:  # old_name不为None同时不等于上次表单中的数据
+        if user is None:
             user = User(username=form.name.data)
             db.session.add(user)
             db.session.commit()
@@ -80,6 +80,10 @@ def page_not_found(e):
 @app.errorhandler(500)
 def internal_server_error(e):
     return render_template('500.html'), 500
+
+@app.shell_context_processor
+def make_shell_context():
+    return dict(db=db, User=User, Role=Role)
 
 
 if __name__ == '__main__':
