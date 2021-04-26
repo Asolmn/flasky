@@ -22,7 +22,7 @@ def index():
                 send_email(
                     app.config['FLASKY_ADMIN'],
                     'New User',
-                    'mail/new_user',
+                    'email/new_user',
                     user=user)
                 print('ok')
         else:

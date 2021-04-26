@@ -4,9 +4,12 @@ blinker==1.4
 certifi==2020.12.5
 chardet==4.0.0
 click==7.1.2
+dnspython==2.1.0
 dominate==2.6.0
+email-validator==1.1.2
 Flask==1.1.2
 Flask-Bootstrap==3.3.7.1
+Flask-Login==0.5.0
 Flask-Mail==0.9.1
 Flask-Migrate==2.7.0
 Flask-Moment==0.11.0

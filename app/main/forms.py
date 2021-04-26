@@ -1,4 +1,4 @@
-"""主蓝本中的表单程序"""
+"""主蓝本中的表单"""
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired
