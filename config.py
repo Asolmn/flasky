@@ -11,12 +11,15 @@ class Config:
     MAIL_PORT = os.environ.get('MAIL_PORT', '587')
     # 如果变量MAIL_USE_TLS在[true,on,1]中则返回True，没有设定默认为true，使用lower()转为大写
     MAIL_USE_TLS = os.environ.get(
-        'MAIL_USE_TLS', 'true').lower() in [
-        'true', 'on', '1']
+        'MAIL_USE_TLS', 'False').lower() in [
+        'true', 'on', '1']  # 使用googlemail.com，则设置为True
+    MAIL_USE_SSL = os.environ.get('MAIL_USE_SSL', 'True').lower() in [
+        'true', 'on', '1']  # 使用googlemail.com这一条要关掉
     MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     FLASKY_MAIL_SUBJECT_PREFIX = '[Flasky]'
-    FLASKY_MAIL_SENDER = 'asolmn0707@gmail.com'
+    FLASKY_MAIL_SENDER = os.environ.get(
+        'FLASKY_MAIL_SENDER', 'asolmn0707@gmail.com')
     FLASKY_ADMIN = os.environ.get('FLASKY_ADMIN')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 

@@ -1,3 +1,4 @@
+"""发送邮件功能"""
 from . import mail
 from flask_mail import Message
 from flask import render_template, current_app
@@ -10,7 +11,7 @@ def send_async_email(app, msg):
 
 
 def send_email(to, subject, template, **kwargs):
-    app = current_app._get_current_object()
+    app = current_app._get_current_object()  # 因为current_app是全局，所以不可以直接使用
     msg = Message(app.config['FLASKY_MAIL_SUBJECT_PREFIX'] + subject,
                   sender=app.config['FLASKY_MAIL_SENDER'], recipients=[to])
     msg.body = render_template(template + '.txt', **kwargs)

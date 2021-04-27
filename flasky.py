@@ -5,7 +5,7 @@ from app.models import User, Role
 from flask_migrate import Migrate
 
 
-app = create_app(os.environ.get('FLASK_CONFIG') or 'default') #使用默认环境
+app = create_app(os.environ.get('FLASK_CONFIG') or 'default')  # 使用默认环境
 migrate = Migrate(app, db)
 
 

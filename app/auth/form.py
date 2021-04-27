@@ -48,3 +48,14 @@ class RegistrationForm(FlaskForm):
         # 验证用户名是否唯一
         if User.query.filter_by(username=field.data).first():
             raise ValidationError('Username already registered')
+
+
+class ChangePasswordForm(FlaskForm):
+    # 修改密码表单
+    old_password = PasswordField('Old password', validators=[DataRequired()])
+    password = PasswordField('New Password', validators=[
+        DataRequired(),
+        EqualTo('password2', message='Passwords must match')
+    ])
+    password2 = PasswordField('Confirm new password', validators=[DataRequired()])
+    submit = SubmitField('Update Password')

@@ -1,4 +1,4 @@
-from app import db
+"""数据库模型"""
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from app import login_manager
@@ -37,28 +37,31 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(128))
     confirmed = db.Column(db.Boolean, default=False)
 
-
     def generate_confirmation_token(self, expiration=3600):
         # 生成一个令牌，有效期为1一个小时
-        s = Serializer(current_app.config['SECRET_KEY'], expiration) # 以SECRET_KEY为密钥
-        return s.dumps({'confirm':self.id}).decode('utf-8')
+        s = Serializer(
+            current_app.config['SECRET_KEY'],
+            expiration)  # 以SECRET_KEY为密钥
+        return s.dumps({'confirm': self.id}).decode('utf-8')
 
     def generate_confirmation_token_test(self, expiration=1):
         # 为单元测试使用令牌过期时间的函数，有效期为1s
-        s = Serializer(current_app.config['SECRET_KEY'], expiration) # 以SECRET_KEY为密钥
-        return s.dumps({'confirm':self.id}).decode('utf-8')
+        s = Serializer(
+            current_app.config['SECRET_KEY'],
+            expiration)  # 以SECRET_KEY为密钥
+        return s.dumps({'confirm': self.id}).decode('utf-8')
 
     def confirm(self, token):
         # 确认令牌
-        s = Serializer(current_app.config['SECRET_KEY']) # 生成密钥
+        s = Serializer(current_app.config['SECRET_KEY'])  # 生成密钥
         try:
-            data = s.loads(token.encode('utf-8')) # 通过密钥还原数据
+            data = s.loads(token.encode('utf-8'))  # 通过密钥还原数据
         except:
             return False
-        if data.get('confirm') != self.id: # 检验用户id是否等于登录中的用户匹配
+        if data.get('confirm') != self.id:  # 检验用户id是否等于登录中的用户匹配
             return False
-        self.confirmed = True # 确认令牌后，将confirmed字段设置为True
-        db.session.add(self) # 直接add(self)，可以直接新增的内容加入数据库
+        self.confirmed = True  # 确认令牌后，将confirmed字段设置为True
+        db.session.add(self)  # 直接add(self)，可以直接新增的内容加入数据库
         return True
 
 

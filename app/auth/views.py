@@ -3,21 +3,23 @@ from flask import render_template, redirect, request, url_for, flash
 from flask_login import login_user, logout_user, login_required, current_user
 from app.auth import auth
 from app.models import User
-from app.auth.form import LoginForm, RegistrationForm
+from app.auth.form import LoginForm, RegistrationForm, ChangePasswordForm
 from app import db
 from app.email import send_email
 
 
 # before_request()与unconfirmed() 允许未确认的用户登录，但是进一步获取访问权限时，必须先确认账号
 # 满足两个函数中的条件，则before_app_request会拦截请求
-@auth.before_app_request # before_app_request针对应用全局请求的钩子
+@auth.before_app_request  # before_app_request针对应用全局请求的钩子
 def before_request():
     # 在请求开始之前，执行此函数，判断用户是否登录凭据有校，未确认账号，处理请求不是身份验证蓝图，处理请求的端点不为static特殊添加的路由
     if current_user.is_authenticated \
             and not current_user.confirmed \
             and request.blueprint != 'auth' \
             and request.endpoint != 'static':
-        return redirect(url_for('auth.unconfirmed')) # 如果满足以上条件，重定向到unconfirmed()函数
+        # 如果满足以上条件，重定向到unconfirmed()函数
+        return redirect(url_for('auth.unconfirmed'))
+
 
 @auth.route('/unconfirmed')
 def unconfirmed():
@@ -52,8 +54,8 @@ def login():
 def logout():
     # 用户登出函数
     logout_user()
-    flash('You have been logged out') # 弹出提示
-    return redirect(url_for('main.index')) # 重定向回首页
+    flash('You have been logged out')  # 弹出提示
+    return redirect(url_for('main.index'))  # 重定向回首页
 
 
 @auth.route('/register', methods=['GET', 'POST'])
@@ -72,7 +74,12 @@ def register():
         db.session.commit()
         token = user.generate_confirmation_token()
         # 发送邮件 send_email(收件人，主题，模板位置，可变参数)
-        send_email(user.email, 'Confirm Your Account', 'auth/email/confirm', user=user, token=token)
+        send_email(
+            user.email,
+            'Confirm Your Account',
+            'auth/email/confirm',
+            user=user,
+            token=token)
         flash('A confirmation email has been sent to you by email')
         # 重定向到登录页面
         return redirect(url_for('auth.login'))
@@ -80,13 +87,13 @@ def register():
 
 
 @auth.route('/confirm/<token>')
-@login_required # 保护路由，只有点击链接后，先登录才可以执行此函数
+@login_required  # 保护路由，只有点击链接后，先登录才可以执行此函数
 def confirm(token):
     # 确认用户函数
-    if current_user.comfired: # 以访问的用户中是否已确认
+    if current_user.confirmed:  # 已访问的用户中是否已确认
         return redirect(url_for('main.index'))
     if current_user.confirm(token):
-        db.session.commit() # 传入token，标记用户为已确认
+        db.session.commit()  # 传入token，标记用户为已确认
         flash('You have confirmed your account. Thanks!')
     else:
         flash('The confirmation link is invalid or has expired')
@@ -97,7 +104,33 @@ def confirm(token):
 @login_required
 def resend_confirmation():
     # 重新发送用户确认邮件函数
-    token = current_user.generate_confirmation_token()
-    send_email(current_user.email, 'Confirm Your Account', 'auth/email/confirm', user=current_user, token=token)
+    token = current_user.generate_confirmation_token()  # 生成当前用户的密钥
+    send_email(
+        current_user.email,
+        'Confirm Your Account',
+        'auth/email/confirm',
+        user=current_user,
+        token=token)
     flash('A new confirmation email has been sent to you by email')
     return redirect(url_for('main.index'))
+
+
+@auth.route('/change-password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    # 修改用户密码函数
+    form = ChangePasswordForm()
+    if form.validate_on_submit():
+        # 与旧密码字段中的内容与当前用户存储在数据库中散列值进行比对，保证密码正确
+        if current_user.verify_password(form.old_password.data):
+            if form.old_password.data != form.password.data:  # 新密码不能等于旧密码
+                current_user.password = form.password.data  # 赋值新密码
+                db.session.add(current_user)
+                db.session.commit()
+                flash('Your password has been updated')
+                return redirect(url_for('main.index'))
+            else:
+                flash('The new password cannot equal the old password')
+        else:
+            flash('Invalid password')
+    return render_template('auth/change_password.html', form=form)
