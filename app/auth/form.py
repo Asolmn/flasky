@@ -59,3 +59,23 @@ class ChangePasswordForm(FlaskForm):
     ])
     password2 = PasswordField('Confirm new password', validators=[DataRequired()])
     submit = SubmitField('Update Password')
+
+
+class PasswordResetRequestForm(FlaskForm):
+    # 申请重新设置密码表单
+    email = StringField('Email', validators=[
+        DataRequired(),
+        Length(1, 64),
+        Email()
+    ])
+    submit = SubmitField('Reset Password')
+
+
+class PasswordResetForm(FlaskForm):
+    # 重新设置密码表单
+    password = PasswordField('New Password', validators=[
+        DataRequired(),
+        EqualTo('password2', message='Password must match')
+    ])
+    password2 = PasswordField('Confirm password', validators=[DataRequired()])
+    submit = SubmitField('Reset Password')

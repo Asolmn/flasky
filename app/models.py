@@ -51,6 +51,30 @@ class User(UserMixin, db.Model):
             expiration)  # 以SECRET_KEY为密钥
         return s.dumps({'confirm': self.id}).decode('utf-8')
 
+
+    def generate_reset_token(self, expiration=3600):
+        # 生成重置密码用的令牌
+        s = Serializer(
+            current_app.config['SECRET_KEY'],
+            expiration
+        )
+        return s.dumps({'reset':self.id}).decode('utf-8') # 以需要重置密码的用户id作为令牌加密数据
+
+    @staticmethod
+    def reset_password(token, new_password):
+        # 验证令牌和重置密码
+        s = Serializer(current_app.config['SECRET_KEY']) # 设置密钥s
+        try:
+            data = s.loads(token.encode('utf-8')) # 通过生成的令牌还原数据
+        except:
+            return False
+        user =User.query.get(data.get('reset')) # 查询对应id的用户
+        if user is None:
+            return False
+        user.password = new_password # 修改密码
+        db.session.add(user) # 添加到数据库会话中，等待提交
+        return True
+
     def confirm(self, token):
         # 确认令牌
         s = Serializer(current_app.config['SECRET_KEY'])  # 生成密钥
@@ -79,6 +103,7 @@ class User(UserMixin, db.Model):
     def verify_password(self, password):
         # 对比密码散列值
         return check_password_hash(self.password_hash, password)
+
 
     def __repr__(self):
         return '<User %r>' % self.username

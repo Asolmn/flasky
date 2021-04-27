@@ -3,7 +3,8 @@ from flask import render_template, redirect, request, url_for, flash
 from flask_login import login_user, logout_user, login_required, current_user
 from app.auth import auth
 from app.models import User
-from app.auth.form import LoginForm, RegistrationForm, ChangePasswordForm
+from app.auth.form import LoginForm, RegistrationForm, ChangePasswordForm, \
+    PasswordResetRequestForm, PasswordResetForm
 from app import db
 from app.email import send_email
 
@@ -134,3 +135,46 @@ def change_password():
         else:
             flash('Invalid password')
     return render_template('auth/change_password.html', form=form)
+
+
+@auth.route('/reset', methods=['GET', 'POST'])
+def password_reset_request():
+    # 申请重置密码函数
+    if not current_user.is_anonymous: # 用户没有登陆时，current_user默认为匿名用户
+        # 检测是否已经登录，如果是，则跳回主页
+        return redirect(url_for('main.index'))
+    form = PasswordResetRequestForm()
+    if form.validate_on_submit():
+        # 查询对应邮件地址的用户
+        user = User.query.filter_by(email=form.email.data.lower()).first()
+        if user:
+            # 生成该用户的重置密码的验证令牌
+            token = user.generate_reset_token()
+            # 发送带验证令牌的邮件
+            send_email(
+                user.email,
+                'Reset Your Password',
+                'auth/email/reset_password',
+                user=user,
+                token=token
+            )
+        flash('An email with instructions to reset your password has been send to you')
+        return redirect(url_for('auth.login'))
+    return render_template('auth/reset_password.html', form=form)
+
+
+@auth.route('/reset/<token>', methods=['GET', 'POST'])
+def password_reset(token):
+    # 重置密码函数
+    if not current_user.is_anonymous: # 判断用户是否已经登录，已登录则返回主页
+        return redirect(url_for('main.index'))
+    form = PasswordResetForm()
+    if form.validate_on_submit():
+        # 验证令牌，同时修改密码
+        if User.reset_password(token, form.password.data):
+            db.session.commit() # 将修改的密码提交到数据库
+            flash('Your password has been updated')
+            return redirect(url_for('auth.login'))
+        else:
+            return redirect(url_for('main.index'))
+    return render_template('auth/reset_password.html', form=form)
