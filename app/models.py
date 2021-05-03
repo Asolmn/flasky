@@ -3,9 +3,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin, AnonymousUserMixin
 from app import login_manager
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
-from flask import current_app
+from flask import current_app, request
 from app import db
 from datetime import datetime
+import hashlib
 
 
 class Permission:
@@ -110,6 +111,7 @@ class User(UserMixin, db.Model):
     about_me = db.Column(db.Text()) # 关于自己
     member_since = db.Column(db.DateTime(), default=datetime.utcnow) # 注册日期 utcnow无需加()，因为default可以接受函数作为默认值
     last_seen = db.Column(db.DateTime(), default=datetime.utcnow) # 最后一次访问日期
+    avatar_hash = db.Column(db.String(32)) # 头像url
 
     def __init__(self, **kwargs):
         super(User, self).__init__(**kwargs)  # 调用User父类的__init__
@@ -121,6 +123,9 @@ class User(UserMixin, db.Model):
             if self.role is None:
                 self.role = Role.query.filter_by(
                     default=True).first()  # 如果非与管理员邮箱不一致，统一设置为默认角色
+        if self.email is not None and self.avatar_hash is None:
+            # 如果邮箱地址存在，且头像url不存在
+            self.avatar_hash = self.gravatar_hash() # 生成邮件地址对应的散列值
 
     def generate_confirmation_token(self, expiration=3600):
         # 生成一个令牌，有效期为1一个小时
@@ -169,6 +174,7 @@ class User(UserMixin, db.Model):
             # 查询新邮件地址是否与旧邮件地址相同
             return False
         self.email = new_email  # 修改密码
+        self.avatar_hash = self.gravatar_hash()
         db.session.add(self)  # 将用户修改添加到数据库会话中
         return True
 
@@ -217,8 +223,7 @@ class User(UserMixin, db.Model):
 
     def can(self, perm):
         # 判断用户角色权限与是否存在
-        return self.role is not None and self.role.has_permission(
-            perm)  # 角色存在同时是管理员权限返回True
+        return self.role is not None and self.role.has_permission(perm)  # 角色存在同时是管理员权限返回True
 
     def is_administrator(self):
         # 判断用户是否为管理员账号
@@ -229,6 +234,20 @@ class User(UserMixin, db.Model):
         self.last_seen = datetime.utcnow()
         db.session.add(self)
         db.session.commit()
+
+    def gravatar_hash(self):
+        # 生成邮件地址对应的md5散列值
+        return hashlib.md5(self.email.lower().encode('utf-8')).hexdigest()
+
+    def gravatar(self, size=100, default='identicon', rating='g'):
+        # 生成头像服务所使用的Gravatar URL
+        if request.is_secure:
+            url = 'https://secure.gravatar.com/avatar'
+        else:
+            url = 'https://www.gravatar.com/avatar'
+        hash = self.avatar_hash or self.gravatar_hash()
+        return '{url}/{hash}?s={size}&d={default}&r={rating}'.format(
+            url=url, hash=hash, size=size, default=default, rating=rating)
 
     def __repr__(self):
         return '<User %r>' % self.username
