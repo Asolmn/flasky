@@ -4,7 +4,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from app.auth import auth
 from app.models import User
 from app.auth.form import LoginForm, RegistrationForm, ChangePasswordForm, \
-    PasswordResetRequestForm, PasswordResetForm
+    PasswordResetRequestForm, PasswordResetForm, ChangeEmailForm
 from app import db
 from app.email import send_email
 
@@ -14,12 +14,13 @@ from app.email import send_email
 @auth.before_app_request  # before_app_request针对应用全局请求的钩子
 def before_request():
     # 在请求开始之前，执行此函数，判断用户是否登录凭据有校，未确认账号，处理请求不是身份验证蓝图，处理请求的端点不为static特殊添加的路由
-    if current_user.is_authenticated \
-            and not current_user.confirmed \
-            and request.blueprint != 'auth' \
-            and request.endpoint != 'static':
-        # 如果满足以上条件，重定向到unconfirmed()函数
-        return redirect(url_for('auth.unconfirmed'))
+    if current_user.is_authenticated:
+        current_user.ping() # 确保用户的最后访问时间是最新，每次请求前都要调用ping()
+        if not current_user.confirmed \
+                and request.blueprint != 'auth' \
+                and request.endpoint != 'static':
+            # 如果满足以上条件，重定向到unconfirmed()函数
+            return redirect(url_for('auth.unconfirmed'))
 
 
 @auth.route('/unconfirmed')
@@ -140,7 +141,7 @@ def change_password():
 @auth.route('/reset', methods=['GET', 'POST'])
 def password_reset_request():
     # 申请重置密码函数
-    if not current_user.is_anonymous: # 用户没有登陆时，current_user默认为匿名用户
+    if not current_user.is_anonymous:  # 用户没有登陆时，current_user默认为匿名用户
         # 检测是否已经登录，如果是，则跳回主页
         return redirect(url_for('main.index'))
     form = PasswordResetRequestForm()
@@ -166,15 +167,49 @@ def password_reset_request():
 @auth.route('/reset/<token>', methods=['GET', 'POST'])
 def password_reset(token):
     # 重置密码函数
-    if not current_user.is_anonymous: # 判断用户是否已经登录，已登录则返回主页
+    if not current_user.is_anonymous:  # 判断用户是否已经登录，已登录则返回主页
         return redirect(url_for('main.index'))
     form = PasswordResetForm()
     if form.validate_on_submit():
         # 验证令牌，同时修改密码
         if User.reset_password(token, form.password.data):
-            db.session.commit() # 将修改的密码提交到数据库
+            db.session.commit()  # 将修改的密码提交到数据库
             flash('Your password has been updated')
             return redirect(url_for('auth.login'))
         else:
             return redirect(url_for('main.index'))
     return render_template('auth/reset_password.html', form=form)
+
+
+@auth.route('/change_email', methods=['GET', 'POST'])
+@login_required
+def change_email_request():
+    # 修改邮件地址请求函数
+    form = ChangeEmailForm()
+    if form.validate_on_submit():
+        if current_user.verify_password(form.password.data): # 验证密码是否正确
+            new_email = form.email.data # 修改邮件地址
+            token = current_user.generate_email_change_token(new_email) # 生成确认邮件地址的验证令牌
+            send_email(
+                new_email,
+                'Confirm your email address',
+                'auth/email/change_email',
+                user = current_user,
+                token = token
+            )
+            flash('An email with instructions to confirm your new email address has been sent to you')
+        else:
+            flash('Invalid email or password')
+    return render_template('auth/change_email.html', form=form)
+
+
+@auth.route('/change_email/<token>')
+@login_required
+def change_email(token):
+    # 修改邮件地址函数
+    if current_user.change_email(token): # 通过数据库模型程序中改变邮件验证
+        db.session.commit() # 提交修改
+        flash('Your email address has been update')
+    else:
+        flash('Invalid request')
+    return redirect(url_for('main.index'))
