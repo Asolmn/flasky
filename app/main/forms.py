@@ -1,6 +1,6 @@
 """主蓝本中的表单"""
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, TextAreaField, BooleanField, SelectField, ValidationError
+from wtforms import StringField, SubmitField, TextAreaField, BooleanField, SelectField, ValidationError, FileField
 from wtforms.validators import DataRequired, Length, Email, Regexp
 from app.models import Role, User
 
@@ -55,3 +55,7 @@ class EditProfileAdminForm(FlaskForm):
         if field.data != self.user.username and \
             User.query.filter_by(username=field.data).first():
             raise ValidationError('Username already in use')
+
+
+class PostForm(FlaskForm):
+    pass

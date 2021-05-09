@@ -7,6 +7,7 @@ from flask import current_app, request
 from app import db
 from datetime import datetime
 import hashlib
+from datetime import datetime
 
 
 class Permission:
@@ -28,7 +29,7 @@ class Role(db.Model):
     # 用户角色模型
     __tablename__ = 'roles'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64), unique=True)
+    name = db.Column(db.String(64), unique=True) # 角色名
     default = db.Column(db.Boolean, default=False, index=True)  # 默认角色
     permissions = db.Column(db.Integer)  # 权限字段
     # 寻找关系中的外键，同时向User类中添加一个role属性
@@ -95,16 +96,25 @@ class Role(db.Model):
         return '<Role %r>' % self.name
 
 
+class Post(db.Model):
+    # 博客文章模型
+    __tablename__ = 'posts'
+    id = db.Column(db.Integer, primary_key=True)
+    body = db.Column(db.Text) # 正文
+    timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow) # 时间戳
+    author_id = db.Column(db.Integer, db.ForeignKey('users.id')) # 与users表中的id进行关联
+
+
 class User(UserMixin, db.Model):
     # 用户模型
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(64), unique=True, index=True)
-    username = db.Column(db.String(64), unique=True, index=True)
+    email = db.Column(db.String(64), unique=True, index=True) # 邮箱
+    username = db.Column(db.String(64), unique=True, index=True) # 用户名
     # 添加一个外键，与roles表中的id行建立关系
     role_id = db.Column(db.Integer, db.ForeignKey('roles.id'))
-    password_hash = db.Column(db.String(128))
-    confirmed = db.Column(db.Boolean, default=False)
+    password_hash = db.Column(db.String(128)) # 密码散列值
+    confirmed = db.Column(db.Boolean, default=False) # 确认账号字段
     # 用户资料字段
     name = db.Column(db.String(64)) # 真实姓名
     location = db.Column(db.String(64)) # 所在地
@@ -112,6 +122,7 @@ class User(UserMixin, db.Model):
     member_since = db.Column(db.DateTime(), default=datetime.utcnow) # 注册日期 utcnow无需加()，因为default可以接受函数作为默认值
     last_seen = db.Column(db.DateTime(), default=datetime.utcnow) # 最后一次访问日期
     avatar_hash = db.Column(db.String(32)) # 头像url
+    posts = db.relationship('Post', backref='author', lazy='dynamic') # 自动寻找User和Post的外键关系，向Post中添加author属性
 
     def __init__(self, **kwargs):
         super(User, self).__init__(**kwargs)  # 调用User父类的__init__
@@ -242,9 +253,9 @@ class User(UserMixin, db.Model):
     def gravatar(self, size=100, default='identicon', rating='g'):
         # 生成头像服务所使用的Gravatar URL
         if request.is_secure:
-            url = 'https://secure.gravatar.com/avatar'
+            url = 'https://secure.gravatar.com/avatar/'
         else:
-            url = 'https://www.gravatar.com/avatar'
+            url = 'https://gravatar.zeruns.tech/avatar/'
         hash = self.avatar_hash or self.gravatar_hash()
         return '{url}/{hash}?s={size}&d={default}&r={rating}'.format(
             url=url, hash=hash, size=size, default=default, rating=rating)
