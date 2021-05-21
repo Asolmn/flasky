@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_macros.html" as macros %}
 
 {% block title %}Flasky - {{ user.username }}{% endblock %}
 
@@ -34,6 +35,7 @@
             <br>
             Last seen {{ moment(user.last_seen).fromNow() }}
         </p>
+        <p>{{ user.posts.count() }} blog posts</p>
         {% if user == current_user %}
             <a class="btn btn-default" href="{{ url_for('main.edit_profile') }}">
                 Edit Profile
@@ -45,5 +47,12 @@
             </a>
         {% endif %}
     </div>
+    <h3>Posts by {{ user.username }}</h3>
+    {% include '_posts.html' %}
+    {% if pagination %}
+    <div class="pagination">
+        {{ macros.pagination_widget(pagination, 'main.user', username=user.username) }}
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

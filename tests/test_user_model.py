@@ -2,6 +2,7 @@ import unittest
 from app.models import User, Permission, AnonymousUser, Role
 import time
 from app import create_app, db
+from datetime import datetime
 
 
 class UserModelTestCase(unittest.TestCase):
@@ -86,7 +87,7 @@ class UserModelTestCase(unittest.TestCase):
         db.session.add(u)
         db.session.commit()
         token = u.generate_reset_token()
-        self.assertFalse(User.reset_password(token+'a','horse'))
+        self.assertFalse(User.reset_password(token + 'a', 'horse'))
         self.assertTrue(u.verify_password('cat'))
 
     def test_valid_email_change_token(self):
@@ -157,3 +158,40 @@ class UserModelTestCase(unittest.TestCase):
         self.assertFalse(u.can(Permission.WRITE))
         self.assertFalse(u.can(Permission.MODERATE))
         self.assertFalse(u.can(Permission.ADMIN))
+
+    def test_timestamps(self):
+        # 测试生成默认时间是否一致
+        u = User(password='cat')
+        db.session.add(u)
+        db.session.commit()
+        self.assertTrue(
+            (datetime.utcnow() - u.member_since).total_seconds() < 3)
+        self.assertTrue((datetime.utcnow() - u.last_seen).total_seconds() < 3)
+
+    def test_ping(self):
+        # 测试更新用户访问最新时间功能
+        u = User(password='cat')
+        db.session.add(u)
+        db.session.commit()
+        time.sleep(2)
+        last_seen_before = u.last_seen
+        u.ping()
+        self.assertTrue(u.last_seen > last_seen_before)
+
+
+"""因为gravatar被CDN墙，此测试模块弃用
+    def test_gravatar(self):
+        # 测试头像服务
+        u = User(email='john@example.com', password='cat')
+        with self.app.test_request_context('/'):
+            gravatar = u.gravatar()
+            gravatar_256 = u.gravatar(size=256)
+            gravatar_pg = u.gravatar(rating='pg')
+            gravatar_retro = u.gravatar(default='retro')
+        self.assertTrue('https://secure.gravatar.com/avatar/' +
+                        'd4c74594d841139328695756648b6bd6'in gravatar)
+        self.assertTrue('s=256' in gravatar_256)
+        self.assertTrue('r=pg' in gravatar_pg)
+        self.assertTrue('d=retro' in gravatar_retro)
+
+"""

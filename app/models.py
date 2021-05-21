@@ -8,6 +8,8 @@ from app import db
 from datetime import datetime
 import hashlib
 from datetime import datetime
+from markdown import markdown
+import bleach
 
 
 class Permission:
@@ -103,6 +105,36 @@ class Post(db.Model):
     body = db.Column(db.Text) # 正文
     timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow) # 时间戳
     author_id = db.Column(db.Integer, db.ForeignKey('users.id')) # 与users表中的id进行关联
+    body_html = db.Column(db.Text) # 博客正文的html代码
+
+    @staticmethod
+    def on_change_body(target, value, oldvalue, initiator):
+        # 处理Markdown文本
+        # 允许的html标签
+        allowed_tags = [
+            'a','abbr','acronym','b','blockquote','code','em','i',
+            'li','ol','pre','strong','ul','h1','h2','h3','p'
+        ]
+        # markdown()将markdown文本转换为html格式, 传给bleach的clean函数进行筛选
+        # linkify为文本中的url自动添加<a>链接，Markdown规范中并没有这一功能，但是PageDown扩展实现了这个功能，所以服务端也要保持一直
+        target.body_html = bleach.linkify(
+            bleach.clean(
+                markdown(value, output_format='html'),
+                tags = allowed_tags,
+                strip = True,
+            )
+        )
+
+# 监听Post的body字段，如果发生更新，on_change_body自动调用，渲染成html格式
+db.event.listen(Post.body, 'set', Post.on_change_body)
+
+
+class Follow(db.Model):
+    # 用户关注之间的关联表
+    __tablename__ = 'follows'
+    follower_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True) # 关注者
+    followed_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True) # 被关注者
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow) # 关注时间
 
 
 class User(UserMixin, db.Model):
@@ -123,6 +155,22 @@ class User(UserMixin, db.Model):
     last_seen = db.Column(db.DateTime(), default=datetime.utcnow) # 最后一次访问日期
     avatar_hash = db.Column(db.String(32)) # 头像url
     posts = db.relationship('Post', backref='author', lazy='dynamic') # 自动寻找User和Post的外键关系，向Post中添加author属性
+    # 关注用户外键, 表明此用户关注了多少用户
+    followed = db.relationship(
+        'Follow',
+        foreign_keys=[Follow.follower_id],
+        backref=db.backref('follower', lazy='joined'),
+        lazy='dynamic',
+        cascade='all, delete-orphan'
+    )
+    # 被关注用户外键， 表明此用户被多少用户关注
+    followers = db.relationship(
+        'Follow',
+        foreign_keys=[Follow.followed_id],
+        backref=db.backref('followed', lazy='joined'),
+        lazy='dynamic',
+        cascade='all, delete-orphan'
+    )
 
     def __init__(self, **kwargs):
         super(User, self).__init__(**kwargs)  # 调用User父类的__init__
@@ -259,6 +307,33 @@ class User(UserMixin, db.Model):
         hash = self.avatar_hash or self.gravatar_hash()
         return '{url}/{hash}?s={size}&d={default}&r={rating}'.format(
             url=url, hash=hash, size=size, default=default, rating=rating)
+
+    def follow(self, user):
+        # 关注方法
+        # 如果user没有关注当前用户，则Follow中插入一条关注记录
+        if not self.is_following(user):
+            f = Follow(follower=self, followed=user)
+            db.session.add(f)
+
+    def unfollow(self, user):
+        # 取消关注方法
+        # 从此用户关注的用户中，找到被关注是user的Follow对象
+        f = self.followed.filter_by(followed_id=user.id).first()
+        if f:
+            # 删除这条关注记录
+            db.session.delete(f)
+
+    def is_following(self, user):
+        if user.id is None:
+            return False
+        # 当前此用户关注的用户中，如果存在被关注者是user，证明关注关系存在，返回True，反之为False
+        return self.followed.filter_by(followed_id=user.id).first() is not None
+
+    def is_followed_by(self, user):
+        if user.id is None:
+            return False
+        # 当前关注此用户的用户中，如果存在关注者等于user，证明关注关系存在，返回True，反之为False
+        return self.followers.filter_by(follower_id=user.id).first() is not None
 
     def __repr__(self):
         return '<User %r>' % self.username
