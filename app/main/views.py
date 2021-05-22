@@ -54,8 +54,9 @@ def user(username):
     user = User.query.filter_by(
         username=username).first_or_404()  # 查询相应的用户名，如果搜索不到返回404错误
     # posts = user.posts.order_by(Post.timestamp.desc()).all()  # 获取查询用户的所有文章
+    query = Post.query.filter_by(author=user) # 获取user的博客文章
     page = request.args.get('page', 1, type=int)  # 获取渲染页数，默认渲染第一页
-    pagination = Post.query.order_by(
+    pagination = query.order_by(
         Post.timestamp.desc()).paginate(
         page,
         per_page=current_app.config['FLASKY_POSTS_PER_PAGE'],
