@@ -185,6 +185,16 @@ class User(UserMixin, db.Model):
         if self.email is not None and self.avatar_hash is None:
             # 如果邮箱地址存在，且头像url不存在
             self.avatar_hash = self.gravatar_hash() # 生成邮件地址对应的散列值
+        self.follow(self) # 把用户设置为自己的关注者
+
+    @staticmethod
+    def add_self_follows():
+        # 批量将数据库中的用户，设置为自己的关注者，为了可以在关注用户文章中，显示出自己的文章
+        for user in User.query.all():
+            if not user.is_following(user):
+                user.follow(user)
+                db.session.add(user)
+                db.session.commit()
 
     def generate_confirmation_token(self, expiration=3600):
         # 生成一个令牌，有效期为1一个小时
@@ -324,16 +334,24 @@ class User(UserMixin, db.Model):
             db.session.delete(f)
 
     def is_following(self, user):
+        # 判断user是否已经关注
         if user.id is None:
             return False
         # 当前此用户关注的用户中，如果存在被关注者是user，证明关注关系存在，返回True，反之为False
         return self.followed.filter_by(followed_id=user.id).first() is not None
 
     def is_followed_by(self, user):
+        # 判断user是否已经关注当前用户
         if user.id is None:
             return False
         # 当前关注此用户的用户中，如果存在关注者等于user，证明关注关系存在，返回True，反之为False
         return self.followers.filter_by(follower_id=user.id).first() is not None
+
+    @property # 将此方法定义为属性
+    def followed_posts(self):
+        # 获取所关注用户的文章
+        # 将Post和Follow进行联结查询，另被关注用户等于作者用户，然后进行过滤，关注用户等于当前用户
+        return Post.query.join(Follow, Follow.followed_id==Post.author_id).filter(Follow.follower_id==self.id)
 
     def __repr__(self):
         return '<User %r>' % self.username

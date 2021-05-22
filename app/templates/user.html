@@ -36,23 +36,47 @@
             Last seen {{ moment(user.last_seen).fromNow() }}
         </p>
         <p>{{ user.posts.count() }} blog posts</p>
-        {% if user == current_user %}
-            <a class="btn btn-default" href="{{ url_for('main.edit_profile') }}">
-                Edit Profile
+        <p>
+            {% if current_user.can(Permission.FOLLOW) and user != current_user %}
+                {% if not current_user.is_following(user) %}
+                    <a href="{{ url_for('main.follow', username=user.username) }}" class="btn btn-primary">
+                        Follow
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('main.unfollow', username=user.username) }}" class="btn btn-default">
+                        Unfollow
+                    </a>
+                {% endif %}
+            {% endif %}
+            <a href="{{ url_for('main.followers', username=user.username) }}">
+                Followers: <span class="badge">{{ user.followers.count()-1 }}</span>
             </a>
-        {% endif %}
-        {% if current_user.is_administrator %}
-            <a class="btn btn-danger" href="{{ url_for('main.edit_profile_admin', id=user.id) }}">
-                Edit Profile [Admin]
+            <a href="{{ url_for('main.followed_by', username=user.username) }}">
+                Following: <span class="badge">{{ user.followed.count()-1 }}</span>
             </a>
-        {% endif %}
+            {% if current_user.is_authenticated and user != current_user and user.is_following(current_user) %}
+                <span class="label label-default">Follows you</span>
+            {% endif %}
+        </p>
+        <p>
+            {% if user == current_user %}
+                <a class="btn btn-default" href="{{ url_for('main.edit_profile') }}">
+                    Edit Profile
+                </a>
+            {% endif %}
+            {% if current_user.is_administrator %}
+                <a class="btn btn-danger" href="{{ url_for('main.edit_profile_admin', id=user.id) }}">
+                    Edit Profile [Admin]
+                </a>
+            {% endif %}
+        </p>
     </div>
-    <h3>Posts by {{ user.username }}</h3>
-    {% include '_posts.html' %}
-    {% if pagination %}
-    <div class="pagination">
-        {{ macros.pagination_widget(pagination, 'main.user', username=user.username) }}
-    </div>
-    {% endif %}
 </div>
+<h3>Posts by {{ user.username }}</h3>
+{% include '_posts.html' %}
+{% if pagination %}
+<div class="pagination">
+    {{ macros.pagination_widget(pagination, 'main.user', username=user.username) }}
+</div>
+{% endif %}
 {% endblock %}

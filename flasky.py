@@ -1,7 +1,7 @@
 """主脚本"""
 import os
 from app import create_app, db
-from app.models import User, Role, Permission, Post
+from app.models import User, Role, Permission, Post, Follow
 from flask_migrate import Migrate
 
 
@@ -12,7 +12,7 @@ migrate = Migrate(app, db)
 # 配置shell上下文
 @app.shell_context_processor
 def make_shell_context():
-    return dict(db=db, User=User, Role=Role, Permission=Permission, Post=Post)
+    return dict(db=db, User=User, Role=Role, Permission=Permission, Post=Post, Follow=Follow)
 
 
 # 设置一个启动测试的命令
